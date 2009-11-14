@@ -1,0 +1,283 @@
+<?php
+/**
+ * @author Itay Moav <itay.malimovka@gmail.com>
+ * @license 
+ *
+ */
+//***********************************************************************************************************************
+// SqlPaging
+//
+// Purpose: Class to handle paging large queries.
+//
+// Class will take query, Check if a count is allready cached. 	No->will run a count query and cache results.
+//										Yes->Will build rullers and calculate the page, current page, next page.
+// Will execute the query
+//Expose all the data needed for the controls.
+//
+// Methods:
+//
+// getTotalPages		:		Returns number of pages.
+//
+// getCurrentPage		:		Returns the current page number that was fetched.
+//
+// getCurrentPageTotal	:		Returns number of records in this page.
+//
+// getTotal				:		Returns total number of records in this search.
+//
+// getPage				:		Returns the dataset of data
+//
+//**********************************************************************************************************************
+class lib_dbutils_SqlPaging
+{
+	/**
+	 * Shuster
+	 *
+	 * @var lib_dbutils_ShusterDb
+	 */
+	protected $DB;				//DB class.
+	protected $key;				//The key in the cache for the sql.
+	protected $sql;				//The sql query I need to page.
+	protected $current_page; 	//current page requested.
+	protected $pageSize;		//Page size to show.
+	protected $count=false;		//Number of rows expected from this query.
+	protected $currentPageTotal; //Total entries in this page.
+	protected $storageNameSpace='paginator';
+	
+	//If sql don't have the SELECT in him, then I assume I got a caching key/session key, depends on the system I work with. FOR SAFETY REASONS BE SURE THAT YOU ONLY PASS REAL SQL SERVER SIDE!!!
+	public function __construct($sql,$page_size=15){
+		$this->DB=lib_dbutils_ShusterDb::getInstance();
+		$this->getSql($sql);
+		$this->pageSize=$this->DB->cleanNum($page_size);
+	}//EOF CONSTRUCTOR
+	
+	public function setCurrentPage($current_page){
+		$this->current_page=$this->DB->cleanNum($current_page-1); //defaults to 0
+		return $this;
+	}
+	
+	/**
+	 * Optional method to set manualy the count. Will save a query if there is pre knowledge of the count.
+	 * Otherwise, will run a COUNT query once per new sql.
+	 *
+	 * @param integer $count
+	 * @return lib_dbutils_SqlPager
+	 */
+	public function setCount($count){
+		$this->count=$count*1; //*1 is to make it an int instead of a string
+		return $this;
+	}
+	
+	//$params should be received as ('order by field'=>'asc','order by field'=>'desc')
+	public function setOrderBy($params=null) {
+		//check input
+		if(!is_array($params) || count($params)==0) {
+			return $this;
+		}
+		//remove older ORDER BY clause TODO make it work with GROUP BY too.
+		$to_remove=stristr($this->sql,'order by ');
+		$this->sql=str_ireplace($to_remove,'',$this->sql);
+		
+		//change the stored sql query
+		$order_by=' ORDER BY ';
+		foreach($params AS $k=>$order){
+			$order_by.=$this->DB->cleanStr($k).' '.$this->DB->cleanStr($order).',';
+		}
+		
+		//remove last coma
+		$len=strlen($order_by);
+		$order_by=substr($order_by,0,$len-1);
+		
+		//new sql
+		$this->setSql($this->sql.$order_by);
+		
+		//set page to be 0
+		$this->current_page=0;
+		
+		return $this;
+	}
+	
+	/**
+	 * Get sql from cache or throw an exception.
+	 *
+	 * @param mixed $i_sql Either an SQL statment, or the key of the SQL in the cache.
+	 */
+	protected function getSql($i_sql) {
+		if(stripos($i_sql,'SELECT')!==false) {
+			//Store sql in cach as it is going to be used from now on. 
+			$this->key=md5($i_sql);
+			$this->setSql($i_sql);
+		}else{
+			$this->key=$i_sql;
+			$this->sql=$_SESSION[$this->storageNameSpace][$this->key]['sql'];
+		}
+	}//EOF getSql
+	
+	/**
+	 * Main method of this class. It will check if a count exists, if not it will creat one, calculate the rullers
+	 * update the query with the LIMIT clause, run the query and return a result set.
+	 *
+	 * @return lib_dbutils_RecordsetIterator
+	 */
+	public function getPage() {
+		//check and/or generate count
+		$this->generateCount();
+		
+		//get LIMIT clause for the current page
+		$limit=$this->getLimit();
+		
+		//Build SQL
+		$sql=$this->sql.$limit;
+		
+		//run and return;
+		$ret=$this->DB->select($sql)->getIterator();
+		$this->currentPageTotal=count($ret);
+		return($ret);
+	}//EOF function getPage
+	
+	/**
+	 * Generates the Page count. Regenerates when we hit last page or first page.
+	 *
+	 */
+	protected function generateCount() {
+		$new_count=false;
+		if(isset($_SESSION[$this->storageNameSpace][$this->key]['count']))	{
+			$this->count=$_SESSION[$this->storageNameSpace][$this->key]['count'];
+		}elseif(is_int($this->count) && $this->count>0)	{
+			$_SESSION[$this->storageNameSpace][$this->key]['count']=$this->count;
+		}else{
+			$new_count=true;
+			$this->runAndStoreCount();
+		}		
+		
+		//overriding algo if we hit page one, or last page
+		if($this->current_page==0 || $this->current_page==$this->getTotalPages()-1 && !$new_count){
+			$this->runAndStoreCount();
+		}
+	}//EOF generateCount
+	
+	/**************************************************************************************/
+	/**
+	 * Queries the DB for the actual count and stores it in the SESSION
+	 *
+	 */
+	protected function runAndStoreCount() {
+		//I ASSUME NO LIMIT IS USED, IF YES, ADD A LINE TO REMOVE IT.
+		//I also remove everything from GROUP BY on
+		$sql=strstr($this->sql,'FROM ');//TODO this space after the FROM should also be a new line.
+		$sql='SELECT COUNT(*) '.$sql;
+		$this->DB->select($sql);
+		if($this->DB->numRows()>1){ //This is a group by query. The real count is the number of records.
+			$this->count=$this->DB->numRows();
+		}else{
+			$row=$this->DB->getRow(MYSQL_NUM);
+			$this->count=$row[0];
+		}
+		//Cache result
+		$_SESSION[$this->storageNameSpace][$this->key]['count']=$this->count;
+	}//EOF runAndStoreCount
+	
+	protected function getLimitTips() {
+		$start=$this->current_page*$this->pageSize;
+		if($start>$this->count)	{
+			$start=0;
+		}
+		$end=$this->pageSize;
+		return array('start'=>$start,'end'=>$end);
+	}
+	protected function getLimit() {
+		$tips=$this->getLimitTips();
+		return " LIMIT {$tips['start']},{$tips['end']} ";
+	}//EOF getLimit
+	
+	public function getKey() {
+		return $this->key;
+	}
+	
+	public function getNextPageNumber() {
+		$c=$this->current_page;
+		$s=$this->pageSize;
+		$cn=$this->count;
+		if((($c+1)*$s)>=$cn) {
+			return 0;
+		}else{
+			return (++$c);
+		}
+	}//EOF getNextPageNumber
+	
+	public function getBackPageNumber() {
+		$c=$this->current_page;
+		$s=$this->pageSize;
+		$cn=$this->count;
+		
+		if($c<=0){
+			return ((int)($cn/$s));
+		}else{
+			return (--$c);
+		}
+	}//EOF getBackPageNumber	
+	
+	//returns total entries in the query (without a limit)
+	public function getTotal() {
+		return $this->count;
+	}//EOF getTotal
+	
+	//returns number of records in this page
+	public function getCurrentPageTotal() {
+		return $this->currentPageTotal;
+	}//EOF getTotalThisPage
+	
+	public function getCurrentPage() {
+		return $this->current_page+1;
+	}//EOF getCurrentPage
+	
+	//returns number of pages in query.
+	public function getTotalPages() {
+		$total=$this->count/$this->pageSize;
+		if($total>((int)$total)){
+			$total++;
+		}
+		return ((int)$total);
+	}//EOF getTotalPages
+	
+	protected function setSql($i_sql) {	
+		//This is a new search, so I clean here the session from previews searches
+		$_SESSION[$this->storageNameSpace][$this->key]['sql']=$i_sql;
+		$this->sql=$i_sql;
+	}//EOF setSql
+	
+	public function getOrderByDescAsc($field) {
+		//demo, try sending this method the value 'name' and play with the ASC|DESC after the name in the string below.
+		//$this->sql='somthing somthing order something Order By momo shlomo,Name desc';
+		
+		//Find this fields in the order by.
+		//If not exists->return ASC.
+		$pattern="/order by.*($field)\s*(asc|desc)?/i";
+		preg_match($pattern,$this->sql,$results);
+		
+		//If exists return opposite from what there is now (nothing count as ASC).
+		if(isset($results[1]) && isset($results[2]) && strtolower($results[2])=='asc')
+			return 'DESC';
+		return 'ASC';
+	}//EOF getOrderByDescAsc
+}//EOF CLASS SqlPaging
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

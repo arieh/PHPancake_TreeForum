@@ -1,0 +1,407 @@
+<?php
+//**************************************************************************************************
+// 	BobiReciever
+//
+// 	Purpose: Base class to recieve a Bobi Table request and handle it.
+//
+//	Methods:
+//		constructor		:		Gets the JSON and separate it into the three actions: 
+//								DELETE/UPDATE/INSERT
+//
+//**************************************************************************************************
+// By: 		Itay Moav
+// Email: 	itaym02@hotmail.com
+// date:	15.9.2007
+//**************************************************************************************************
+abstract class BobiReciever {
+	function __construct($json,$DataCleaner) {
+		$this->DataCleaner=$DataCleaner;
+		$TempJson=json_decode(stripslashes($json));
+		
+		$this->forUpdate=$TempJson->edit;
+		$this->upd_len=count($this->forUpdate);
+		$this->forInsert=$TempJson->insert;
+		$this->ins_len=count($this->forInsert);	
+		$this->forDelete=$TempJson->delete;
+		$this->del_len=count($this->forDelete);
+
+		$this->fieldList=$this->cleanFieldList($TempJson->mapto); //TODO: here I might enable auto load of names from the DB if no mapto data is recieved.
+		$this->source=$DataCleaner->cleanStr($TempJson->source);
+		$this->key=($TempJson->key)?(explode(',',$TempJson->key)):null;
+		$this->fields_len=count($this->fieldList);
+		$this->AnswerObj=new BobiAnswer();
+	}
+	
+	//------------------------------------- Properties ---------------------------------------------
+	protected $forDelete; 	//Array of would be deleted  items
+	public	  $del_len;		//forDelete length;
+	protected $forUpdate; 	//Array of would be updated  items
+	public	  $upd_len;		//forUpdate lenght
+	protected $forInsert; 	//Array of would be inserted items
+	public    $ins_len;		//forInsert length
+	protected $fieldList;	//Array of fields names in the resource to handle.
+	protected $source;		//Table/resource name to work on. (Will need to add resource type in the future)
+	protected $fields_len;	//number of fields to handle in each record (I prefer for on foreach)
+	protected $DataCleaner;	//Object holding methods to clean input data.
+	protected $AnswerObj;	//Object containing only data on the outcome of each part of the request.
+	/**
+	 * Key used for update (and later for delete), if null, defaults to first field in the field list
+	 * 
+	 * @var array
+	 */
+	protected $key;
+	
+	
+	//------------------------------------- Methodes -----------------------------------------------
+	
+	//**********************************************************************************************
+	// cleanFieldList
+	//
+	// Purpose: cleans and prepares the fields list.
+	//**********************************************************************************************
+	abstract protected function cleanFieldList(array $field_list);
+}//EOF CLASS BobiReciever
+
+
+
+
+
+
+
+
+
+
+//****************************************************************************************************
+// BobiRecieverDB
+//
+// Purpose: Same as BobiReciever, but targeted at working with MySql
+//
+// Methodes:
+//		-	cleanFieldList		-		cleans and prepares the fields list.
+//
+//		-	getUpdateSql		-		Parses the $this->forUpdate array into an list of update SQLs.
+//
+//		-	getInsertSql		-		Parses the $this->forInsert array into a list of inserts SQLs.
+//
+//		-	getDeleteSql		-		Parses the $this->forDelete array into a delete SQL.
+//
+//		-	doUpdate			-		Do the update Sqls statment. Edit the BobiAnswer object with
+//										results.
+//
+//		-	doInsert			-		Do the insert Sqls statment. Edit the BobiAnswer object with
+//										results.
+//
+//		-	doDelete			-		Do the delete Sqls statment. Edit the BobiAnswer object with
+//										results.
+//****************************************************************************************************
+class lib_dbutils_BobiRecieverDB extends BobiReciever 
+{
+	//**********************************************************************************************
+	// constructor
+	//
+	//ALERT: If you are not using ShusterDB, Then the necessary SQL are not auto executed.
+	//		 You will have to use the getUpdateSql,getInsertSql,getDeleteSql to get the
+	//		 necessary SQL and write the code to execute them yourself!.
+	//**********************************************************************************************
+	function __construct($json) {
+		parent::__construct($json,lib_dbutils_ShusterDb::getInstance());
+		$this->DB=lib_dbutils_ShusterDb::getInstance();	//This is also the data cleaner and data handler. I have no remorse in
+															//saving two pointers to the same object in the same class. I see no danger (YET).
+	}
+	
+	/**
+	 * @var lib_dbutils_ShusterDb
+	 */
+	protected $DB;	//DB object to handle data saving.
+	
+	//**********************************************************************************************
+	// cleanFieldList
+	//
+	// Purpose: cleans and prepares the fields list.
+	//**********************************************************************************************
+	protected function cleanFieldList(array $field_list)
+	{
+		$this->fields_len=count($field_list);
+		$ret=array($this->fields_len);
+
+		for($i=0;$i<$this->fields_len;$i++)
+		{
+			$ret[$i]=$this->DataCleaner->cleanStr($field_list[$i]->v);
+		}
+		return $ret;
+	}//EOF function cleanFieldList
+		
+	
+	//**********************************************************************************************
+	// getUpdateSql
+	//
+	// Parses the $this->forUpdate array into an list of update SQLs.
+	//
+	// Returns: Array of SQL statments or null if no data to update.
+	//**********************************************************************************************
+	public function getUpdateSql()
+	{
+		$len=$this->upd_len;
+		
+		//Break flow if no data.
+		if($len==0)
+		{
+			return null;
+		}
+		
+		$ret=array($len);		
+		//loop on forUpdate records
+		for($i=0;$i<$len;$i++)
+		{
+			$ret[$i]='UPDATE '.$this->source.' ';
+			$set='SET ';
+			//start from 1, assume offset 0 is the key.
+			for($j=1;$j<$this->fields_len-1;$j++)
+			{
+				$set.=$this->fieldList[$j]."='{$this->DataCleaner->cleanStr($this->forUpdate[$i][$j]->v)}',";
+			}
+			$set.=$this->fieldList[$j]."='{$this->DataCleaner->cleanStr($this->forUpdate[$i][$j]->v)}' ";
+			$ret[$i].=$set.'WHERE ';
+			if($this->key){ //TODO MAKE IT WORK IN THE FUTURE!
+				foreach($this->key as $key){
+					$ret[$i].=$this->fieldList[$key]."={$this->DataCleaner->cleanNum($this->forUpdate[$i][$key]->v)} AND ";			
+				}
+				$ret[$i].='1=1';
+			}else{
+				$ret[$i].=$this->fieldList[0]."='{$this->DataCleaner->cleanStr($this->forUpdate[$i][0]->v)}'";
+			}			
+		}
+		
+		//var_dump($ret);die;
+		return $ret;		
+		
+	}//EOF getUpdateSql
+	
+
+	//**********************************************************************************************
+	// getInsertSql
+	//
+	// Parses the $this->forInsert array into a list of inserts SQLs.
+	// 
+	// Returns: string of SQL insert statment or null if no data to insert.
+	//**********************************************************************************************
+	public function getInsertSql()
+	{
+		$len=$this->ins_len;
+		//Break flow if no data.
+		if($len==0)
+		{
+			return null;
+		}
+
+		$ret='INSERT INTO '.$this->source.'(';
+		for($j=0;$j<$this->fields_len-1;$j++)
+		{
+			$ret.=$this->fieldList[$j].',';
+		}
+		$ret.=$this->fieldList[$j].")\nVALUES";
+		
+		//loop on forInsert records
+		for($i=0;$i<$len;$i++)
+		{
+			$ret.="\n(".((strlen($this->forInsert[$i][0]->v)==0)?'NULL':$this->forInsert[$i][0]->v);//Some time the ID is fixed/get it from app and is not autoincremented
+			for($j=1;$j<$this->fields_len;$j++)
+			{
+				$ret.=",'{$this->DataCleaner->cleanStr($this->forInsert[$i][$j]->v)}'";
+			}
+			$ret.="),";			
+		}
+		$ret.='XXX';
+		
+		//remove last ,
+		$ret=str_replace(',XXX','',$ret);
+		//var_dump($ret);die;
+		return $ret;		
+		
+	}//EOF getInsertSql
+
+
+	//**********************************************************************************************
+	// getDeleteSql
+	//
+	// Parses the $this->forDelete array into a delete SQL.
+	//
+	// Returns: String of SQL delete statment or null if no data to delete.
+	//**********************************************************************************************
+	public function getDeleteSql()
+	{
+		//var_dump($this->forDelete[1]);die;
+		$len=$this->del_len;
+		//Break flow if no data.
+		if($len==0)
+		{
+			return null;
+		}
+		$ret='DELETE FROM '.$this->source.' WHERE ';
+		//We either have a simple delete (according to ID, or a delete of a linking table record - where on all fields)
+		if(is_array($this->forDelete[0])){
+			for($i=0;$i<$len;$i++){//records
+				$ret.=' (';
+				for($j=0;$j<$this->fields_len;$j++){//fields in record
+					$ret.=$this->fieldList[$j].'='.$this->DataCleaner->cleanStr($this->forDelete[$i][$j]->v).' AND ';
+				}
+				$ret.=' 1=1) OR';						
+			}
+			$ret.='(1=2)';//to cancel the last, redundant OR
+		}else{
+			$ret.=$this->fieldList[0].' IN(-1';
+			for($i=0;$i<$len;$i++)
+			{
+				$ret.=','.$this->DataCleaner->cleanNum($this->forDelete[$i]);						
+			}
+			$ret.=')';
+		}
+		//var_dump($ret);die;
+		return $ret;		
+		
+	}//EOF getDeleteSql
+
+	//**********************************************************************************************
+	//	doUpdate
+	//
+	//	Do the update Sqls statment. Edit the BobiAnswer object with results.
+	//**********************************************************************************************
+	public function doUpdate(){
+		$sql_arr=$this->getUpdateSql();
+		
+		//loop on sqls and perform
+		for($i=0;$i<$this->upd_len;$i++)
+		{
+			$status=$this->DB->scalarQuery($sql_arr[$i]);
+			
+			//update the BobiAnswer with the action status
+			if(!is_success($status))
+			{
+				$this->AnswerObj->update[]=$this->forUpdate[$i][0]->v;
+			}
+			
+		}//EOF for		
+	}//EOF doUpdate
+
+
+	//**********************************************************************************************
+	//	doInsert
+	//
+	//	Do the insert Sqls statment. Edit the BobiAnswer object with results.
+	//**********************************************************************************************
+	public function doInsert()
+	{
+		//exit if no data to insert
+		if($this->ins_len==0) return null;
+		
+		//insert & update BobiAnswer
+		$status=$this->DB->scalarQuery($this->getInsertSql());
+		//update the BobiAnswer with the action status
+		if(!is_success($status))
+		{
+			$this->AnswerObj->insert=FAILURE;
+		}
+		else 
+		{
+			$this->AnswerObj->insertID=$status;
+		}
+		
+		return null;
+	}//EOF doInsert
+	
+	
+	//**********************************************************************************************
+	//	doDelete
+	//
+	//	Do the delete Sqls statment. Edit the BobiAnswer object with results.
+	//**********************************************************************************************
+	public function doDelete()
+	{		
+		//Exit if no data to delete
+		if($this->del_len==0)return null;
+		
+		$status=$this->DB->scalarQuery($this->getDeleteSql());
+		
+		//update the BobiAnswer with the action status
+		if(!is_success($status))
+		{
+			$this->AnswerObj->delete=FAILURE;
+		}
+		return null;
+	}//EOF doDelete
+	
+
+	//**********************************************************************************************
+	// processAll
+	//
+	// Activate all the SQLs together.
+	//**********************************************************************************************
+	public function processAll()
+	{
+		$this->doDelete();
+		$this->doUpdate();
+		$this->doInsert();
+	}//EOF processAll
+	
+	
+	//**********************************************************************************************
+	// getBobiAnswer
+	//
+	// Gets the BobiAnswer object as an object or serialized into JSON decodable string.
+	//**********************************************************************************************
+	public function getBobiAnswer($type='object')
+	{
+		switch ($type)
+		{
+			case('string'):
+				return json_encode($this->AnswerObj);
+			case('object'):
+				return $this->AnswerObj;
+			default:
+				return '';
+		}
+	}//EOF getBobiAnswer
+	
+}//EOF CLASS BobiRecieverDB
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+
+
+
+
+//****************************************************************************************************
+// BobiAnswer
+//
+// Purpose: Creates the stdClass, the answer object of the request that will be serialized into a JSON 
+//			and then sent to the client	to be parsed there as suits him.
+//			The data returned to the client consists only of the unsuccessful elements in the request.
+//
+// JSON object: insert:success|failure
+// 				delete:success|failure
+//				update=>array(rowkey,rowkey)
+//
+// 
+//****************************************************************************************************
+class BobiAnswer
+{
+	public $insert=SUCCESS;
+	public $insertID; //ID of first entered item.
+	public $update=array();
+	public $delete=SUCCESS;
+}//EOF CLASS BobiAnswer
+

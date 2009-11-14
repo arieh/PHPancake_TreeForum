@@ -1,0 +1,39 @@
+The Package contains 3 main Forum Classes:
+1. PancakeTF_Message
+2. PancakeTF_Forum
+3. PancakeTF_ForumMessage
+
+These will all required 2 Objects to be provided to them: 
+1. PancakeTF_DBAccessorI : this is a simple DB interface to provide all generic DB actions. the package contains a PDO prt of this interface (PDOAccess)
+2. PancakeTF_PermissionHandlerI : an interface for permission checks. 
+these two should represent the domain-specific rules and db-access methods. 
+
+Class Usage:
+-------------
+
+PancakeTF_Message
+================
+construction:
+you can either construct the message with no initial settings, using he class setters to set its options, or
+to pass the options via the options constructor. If no message id is passed, the constructor assumes a new message is
+created. If an ID is set after construction, all changes made up to this point will be removed (changing the message`s id
+is equal to calling the constructor). if PancakeTF_Message::save() is not called, the changes will not be saved to the database.
+possible options to send to the constructor:
+	forum_id - the forum id
+	title    - the message title
+	content  - the message content
+	parent   - a parent for the message. must be a PancakeTF_MessageI instance
+	permissions - this can be used to change the names of the permission checks (must correspond to the original permission names)
+	date_format - this has to be a valid input to the MySQL DATE_FORMAT syntax
+
+PancakeTF_Forum
+================
+opens a forum, and organizes its messages. can be set to limit how many base messages to pull and how many to skip.
+it can be given the following options at construction:
+	limit
+	start
+	date_format 
+
+PancakeTF_ForumMessage
+=======================
+opens a message as a forum. can receive the same parameters as PancakeTF_Forum, only it ignores the limits. 

@@ -1,0 +1,204 @@
+<?php
+//*************************************************************************************************************
+// lib_dbutils_BobiReader
+//
+// Purpose: This class sits on reference tables (like country lists/city lists/any option lists) and creates
+//			display out of that table in several format, and extract other needed info:
+//
+//			-. returns options in array
+//			-. returns options in a js array
+//			-. Returns a SELECT dom Element (html,string). This can also be done by dressing the BobiTables JSON 
+//			   with the right JS.
+//			-. Create a BobiTables format JSON
+//			-. Get info per input id
+//			-. Get id per input info
+//
+// Methodes:
+//		-		getJSON		-		Get the data in a JSON format.
+//**************************************************************************************************************
+class lib_dbutils_BobiReader {
+	
+	function __construct($table_name,$filter,$filter_value) {
+		$this->DB=lib_dbutils_ShusterDb::getInstance();
+		$this->tableName=$this->DB->cleanStr($table_name);
+		$this->filter=$this->DB->cleanStr($filter);
+		$this->filterValue=$this->DB->cleanStr($filter_value);
+		$this->initReadData();
+	}
+	
+	/**
+	 * @var lib_dbutils_ShusterDb
+	 */
+	protected $DB;
+	protected $tableName;	//Reference table to work on
+	protected $filter;		//If table should be filtered by a field, this var will hold the field name.
+	protected $filterValue;	//Value to filter by.
+	protected $fieldNames;	//Array of the db field names.
+	
+	//**********************************************************************************************************
+	// initiateReadData
+	//
+	// Initiate data reading with the DB object.
+	//**********************************************************************************************************
+	protected function initReadData()
+	{
+		$this->getFieldNames();
+		$this->initGetFieldData();
+		
+		//check filter validity.
+		if($this->filter && !in_array($this->filter,$this->fieldNames))
+		{
+			echo 'THE CHOSEN FILTER {',$this->filter,'} does not exists in table {',$this->tableName,'}';
+		}
+		
+	}//EOF initiateReadData
+	
+
+	//**********************************************************************************************************
+	// getFieldNames
+	//
+	// Read the field names of the table. If no titles where suplied -> use the field names instead.
+	//**********************************************************************************************************
+	protected function getFieldNames()
+	{
+		$sql='SHOW COLUMNS FROM '.$this->tableName;
+		$this->DB->select($sql);
+		foreach($this->DB->getIterator() as $row)
+		{
+			$this->fieldNames[]=$row['Field'];
+		}
+	}//EOF getFieldNames
+	
+	
+	//**********************************************************************************************************
+	// initGetFieldData
+	//
+	// Reads the data of the fields from the DB into DB object
+	//**********************************************************************************************************
+	protected function initGetFieldData()
+	{
+		$sql='SELECT * FROM '.$this->tableName;
+		
+		//Add filter to sql.
+		if($this->filter)
+		{
+			$sql.=" WHERE {$this->filter}='{$this->filterValue}'";
+		}
+		
+		$sql.=" ORDER BY 1 ASC";
+		
+		$this->DB->select($sql);
+	}//EOF getFieldNames
+	
+	
+	//**********************************************************************************************************
+	// getJSON
+	//
+	// functions returns a JSON decodable string of the data read from the table.
+	//
+	// FORMAT:
+	//
+	// var JSON={header:{
+	//			 	name:'My Exclusive Table',
+	//			 	resource: 'bobitable',
+	//				hasData: 1 or 0, (yes or no)
+	//			 	fields:[{name:'title 1',mapto:'mykey'},
+	//			 			{name:'title 2',mapto:'myname'},
+	//			 			{name:'title 3',mapto:'myvalue'}]
+	//			 	
+	//			 },//EOF header
+	//	  body:{
+	//	  		rows:[
+	//	  				{
+	//	  					fields:[{value:1},{value:'line1row1'},{value:'line1row2'}]//EOF fields 1
+	//	  				},//EOF rows1
+	//	  				{	
+	//	  					fields:[{value:2},{value:'line2row1'},{value:'line2row2'}]//EOF fields 2
+	//	  				}//EOF rows2
+	//	  		]//EOF rows array
+	//	  		
+	//	}//EOF body
+	// };
+	//**********************************************************************************************************
+	public function getJSON()
+	{
+		$JSON=new stdClass();
+		$this->buildJSONHeader($JSON);
+		$this->buildJSONBody($JSON);
+		//var_dump($JSON);
+		return json_encode($JSON);		
+	}//EOF getJSON
+	
+	//**********************************************************************************************************
+	// buildJSONHeader
+	//
+	// Builds the header part of the output JSON.
+	//**********************************************************************************************************
+	protected function buildJSONHeader(stdClass $JSON)
+	{
+		$JSON->header=new stdClass();
+		$JSON->header->name=$this->tableName;
+		$JSON->header->resource=$this->tableName;
+		$JSON->header->hasData=1;//updated in build body too
+		
+		//fieldnames
+		for($i=0;$i<count($this->fieldNames);$i++)
+		{
+			$JSON->header->fields[$i]=new stdClass();
+			$JSON->header->fields[$i]->name=$this->fieldNames[$i];
+			$JSON->header->fields[$i]->mapto=$this->fieldNames[$i];
+			//Filtered field should be constant and not editable. Or, at least, copied when adding a row.
+			if($this->filter && $this->filter==$this->fieldNames[$i])
+			{
+				$JSON->header->fields[$i]->constant=1;
+				$JSON->header->fields[$i]->constantValue=$this->filterValue;
+			}
+			else
+			{
+				$JSON->header->fields[$i]->constant=0;
+			}
+		}
+		
+	}//EOF buildJSONHeader
+
+	
+	//**********************************************************************************************************
+	// buildJSONBody
+	//
+	// Builds the body part of the output JSON.
+	//**********************************************************************************************************
+	protected function buildJSONBody(stdClass $JSON)
+	{
+		$JSON->body=new stdClass();
+		
+		//field data
+		$i=0;
+		
+		foreach($this->DB->getIterator() as $Row)
+		{
+			$JSON->body->rows[$i]=new stdClass();
+			
+			//handle fields
+			for($j=0;$j<count($this->fieldNames);$j++)
+			{
+				$JSON->body->rows[$i]->fields[$j]=new stdClass();
+				$JSON->body->rows[$i]->fields[$j]->value=$Row[$this->fieldNames[$j]];
+			}//EOF for
+			$i++;
+		}//EOF foreach
+
+		//handle empty tables, need to send demi fields.
+		//Need to remove the extra line from gui So I inform the JSON.header...
+		if($i==0)
+		{
+			$JSON->header->hasData=0;
+			for($j=0;$j<count($this->fieldNames);$j++)
+			{
+				$JSON->body->rows[$i]->fields[$j]=new stdClass();
+				$JSON->body->rows[$i]->fields[$j]->value=$this->fieldNames[$j];
+			}//EOF for
+		}
+	}//EOF buildJSONBody
+	
+}//EOF CLASS ReferenceTableMReader
+

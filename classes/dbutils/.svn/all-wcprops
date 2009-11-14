@@ -1,0 +1,35 @@
+K 25
+svn:wc:ra_dav:version-url
+V 51
+/svnroot/phpancake/!svn/ver/184/library/lib/dbutils
+END
+BobiReader.php
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svnroot/phpancake/!svn/ver/131/library/lib/dbutils/BobiReader.php
+END
+BobiRecieverDB.php
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svnroot/phpancake/!svn/ver/131/library/lib/dbutils/BobiRecieverDB.php
+END
+SqlPaging.php
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svnroot/phpancake/!svn/ver/166/library/lib/dbutils/SqlPaging.php
+END
+ShusterDb.php
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svnroot/phpancake/!svn/ver/184/library/lib/dbutils/ShusterDb.php
+END
+RecordsetIterator.php
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/svnroot/phpancake/!svn/ver/131/library/lib/dbutils/RecordsetIterator.php
+END

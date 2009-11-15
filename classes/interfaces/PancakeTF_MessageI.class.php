@@ -130,7 +130,7 @@ interface PancakeTF_MessageI {
 	 * 
 	 * @throws InvalidArgumentException if option is not allowed to be manualy changed
 	 */
-	public function setOptions($options = array());
+	public function setOptions(array $options = array());
 	
 	/**
 	 * saves the changes made (if any) to the Message to the DB

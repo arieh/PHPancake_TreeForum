@@ -127,6 +127,10 @@ class PancakeTF_Message implements PancakeTF_MessageI{
 
 		$this->setOptions($options);
 	}
+	
+	public function __destruct(){
+		//if ($this->modified) throw new LogicException('data was not saved');
+	}
 
     /** 
      * returns the message's id
@@ -366,7 +370,7 @@ class PancakeTF_Message implements PancakeTF_MessageI{
 	 * 
 	 * @throws InvalidArgumentException if option is not allowed to be manualy changed
 	 */
-	public function setOptions($options=array()){
+	public function setOptions(array $options=array()){
 		foreach ($options as $key=>$option){
 			if (isset($this->$key) && substr($key,0,1)==='_'){
 				throw new InvalidArgumentException('You are not allowed to manualy set this method:'.$key);

@@ -34,6 +34,7 @@ CREATE TABLE `pancaketf_message_extras` (
   `message_id` int(11) unsigned NOT NULL DEFAULT '0',
   `user` int(11) DEFAULT NULL,
   `votes` int(11) DEFAULT NULL,
+  `delete_flag` int(2) NOT NULL DEFAULT '0',
   PRIMARY KEY (`message_id`),
   CONSTRAINT `pancaketf_message_extras_ibfk_1` FOREIGN KEY (`message_id`) REFERENCES `pancaketf_messages` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

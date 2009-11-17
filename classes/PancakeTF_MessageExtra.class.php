@@ -31,6 +31,17 @@ class PancakeTF_MessageExtra extends PancakeTF_Message{
 	 */
 	protected $votes = 0;
 	
+	protected $delete_flag = false;
+	
+	protected $_permissions = array(
+		'open' => 'open', //open a message
+		'update'=>'Edit My Post', //update the database
+		'create' => 'Post questions', //create a message
+		'move' => 'move', //move a message
+		'delete' => 'Delete Post', //delete a messages
+		'mark_delete'=>'Flag Post Delete'
+	);
+	
 	public function __construct(PancakeTF_DBAccessI $dba, PancakeTF_PermissionHandlerI $permission_handler, $id=false, $options = array()){
 		parent::__construct($dba,$permission_handler,$id,$options);
 	}
@@ -109,6 +120,17 @@ class PancakeTF_MessageExtra extends PancakeTF_Message{
 	 */
 	public function getVotes(){return (int)$this->votes;}
 	
+	public function setDeleteFlag($state = false){
+		if ($this->_permission_handler->doesHavePermission($this->_permissions['mark_delete'])===false){
+			throw new PancakeTF_NoPermissionException('mark_delete');
+		}
+		$this->delete_flag = (bool)$state;
+		return $this;
+	}	
+	
+	public function getDeleteFlag(){
+		return (bool)$this->delete_flag;
+	}
 	
 	public function setOptions(array $options = array()){
 		parent::setOptions($options);
@@ -128,7 +150,8 @@ class PancakeTF_MessageExtra extends PancakeTF_Message{
 				`{$this->extras_table}`.`user`,
 				`{$this->extras_table}`.votes,
 				`{$this->user_table}`.name as `username`,
-				`{$this->user_table}`.email
+				`{$this->user_table}`.email,
+				`{$this->extras_table}`.delete_flag
 			FROM
 				`{$this->extras_table}`
 			Inner Join users ON `{$this->user_table}`.id = `{$this->extras_table}`.`user`
@@ -140,11 +163,13 @@ class PancakeTF_MessageExtra extends PancakeTF_Message{
 		$this->user['name'] = $row['username'];
 		$this->user['email'] = $row['email'];
 		$this->votes = $row['votes'];
+		$this->delete_flag = (bool)$row['delete_flag'];
 	}
 	
 	protected function updateExtra(){
-		$update_sql = "UPDATE `{$this->extras_table}` SET `votes`=? WHERE `id`=?";
-		$this->_dba->update($update_sql,array($this->getVotes(),$this->getId()));
+		$update_sql = "UPDATE `{$this->extras_table}` SET `votes`=?,`delete_flag`=? WHERE `message_id`=?";
+		$del_flag = ($this->delete_flag)? 1 : 0;
+		$this->_dba->update($update_sql,array($this->getVotes(),$del_flag,$this->getId()));
 	}
 	
 	protected function insertExtra(){

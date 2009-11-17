@@ -320,4 +320,22 @@ class PancakeTF_MessageExtraTest extends PancakeTF_TestCase{
 		$this->assertEquals($this->message->getVotes(),2);
 		$this->assertEquals($this->message->getUserData(),array('id'=>2,'name'=>'ita','email'=>'some_email@gmail.com'));
 	}
+	
+	public function testDeleteFlag(){
+		$this->setMessage();
+		$this->assertFalse($this->message->getDeleteFlag());
+	}
+	
+	public function testSetDeleteFlagNoDB(){
+		$this->setMessage();
+		$this->assertTrue($this->message->setDeleteFlag(true)->getDeleteFlag());
+	}
+	
+	public function testSetDeleteFlag(){
+		$this->setMessage(true);
+		$this->message->setId(2);
+		$this->message->setDeleteFlag(true);
+		$this->message->save();
+		$this->assertEquals($this->db->count('pancaketf_message_extras',array('message_id'=>2,'delete_flag'=>1)),1);
+	}
 }

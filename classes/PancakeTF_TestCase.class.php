@@ -15,7 +15,6 @@ abstract class PancakeTF_TestCase extends MyTestCase{
     		try{
     			$this->db->update($stmt);		
     		}catch (Exception $e){}
-    	
     	}
     } 
 }

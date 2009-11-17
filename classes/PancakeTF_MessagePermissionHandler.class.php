@@ -1,5 +1,5 @@
 <?php
-
+require_once dirname(__FILE__) . "/interfaces/PancakeTF_PermissionHandlerI.class.php";
 class PancakeTF_MessagePermissionHandler implements PancakeTF_PermissionHandlerI{
 	/**
 	 * @var string the message extras table at the DB

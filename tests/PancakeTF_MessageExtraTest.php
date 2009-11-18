@@ -1,5 +1,5 @@
 <?php
-require_once dirname(__FILE__) . "/../classes/PancakeTF_TestCase.class.php";
+require_once dirname(__FILE__) . "/../classes/PancakeTF_ShusterTestCase.class.php";
 require_once dirname(__FILE__) . "/../classes/PancakeTF_MessageExtra.class.php";
 
 class PancakeTF_MessageExtraTester extends PancakeTF_MessageExtra{
@@ -20,7 +20,7 @@ class PancakeTF_MessageExtraTester extends PancakeTF_MessageExtra{
 	}
 }
 
-class PancakeTF_MessageExtraTest extends PancakeTF_TestCase{
+class PancakeTF_MessageExtraTest extends PancakeTF_ShusterTestCase{
 	public function setMessage($db=false,$permission=true){
 		if ($db){
 			$this->setUpDB();
@@ -337,5 +337,11 @@ class PancakeTF_MessageExtraTest extends PancakeTF_TestCase{
 		$this->message->setDeleteFlag(true);
 		$this->message->save();
 		$this->assertEquals($this->db->count('pancaketf_message_extras',array('message_id'=>2,'delete_flag'=>1)),1);
+	}
+	
+	public function testCreationWithNoInjection(){
+		$this->setUpDB();
+		$message = new PancakeTF_MessageExtra(null,null,1);
+		$this->assertEquals($message->getUserId(),1);
 	}
 }

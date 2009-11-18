@@ -1,5 +1,7 @@
 <?php
-require_once dirname(__FILE__) . "/../classes/PancakeTF_Message.class.php";
+require_once dirname(__FILE__) . "/PancakeTF_Message.class.php";
+require_once dirname(__FILE__) . "/PancakeTF_MessagePermissionHandler.class.php";
+require_once dirname(__FILE__) . "/PancakeTF_ShusterDB.class.php";
 
 class PancakeTF_MessageExtra extends PancakeTF_Message{
 	const DEFAULT_USER_ID=0;
@@ -42,7 +44,15 @@ class PancakeTF_MessageExtra extends PancakeTF_Message{
 		'mark_delete'=>'Flag Post Delete'
 	);
 	
-	public function __construct(PancakeTF_DBAccessI $dba, PancakeTF_PermissionHandlerI $permission_handler, $id=false, $options = array()){
+	public function __construct($dba = null, $permission_handler=null, $id=false, $options = array()){
+		if (is_null($dba) || false === ($dba instanceof PancakeTF_DBAccessI)){
+			$dba = new PancakeTF_ShusterDB(lib_dbutils_ShusterDb::getInstance());
+		}
+		
+		if (is_null($permission_handler) ||  false === ($permission_handler instanceof PancakeTF_PermissionHandlerI)){
+			$permission_handler = new PancakeTF_MessagePermissionHandler($dba);
+		}
+		
 		parent::__construct($dba,$permission_handler,$id,$options);
 	}
 	
@@ -120,6 +130,12 @@ class PancakeTF_MessageExtra extends PancakeTF_Message{
 	 */
 	public function getVotes(){return (int)$this->votes;}
 	
+	/**
+	 * sets the delete flag for the message
+	 * 	@param bool $state what to set the flag to
+	 * @access public
+	 * @return $this;
+	 */
 	public function setDeleteFlag($state = false){
 		if ($this->_permission_handler->doesHavePermission($this->_permissions['mark_delete'])===false){
 			throw new PancakeTF_NoPermissionException('mark_delete');
@@ -128,13 +144,58 @@ class PancakeTF_MessageExtra extends PancakeTF_Message{
 		return $this;
 	}	
 	
+	/**
+	 * returns the status of the delete flag
+	 * @access public
+	 * @return bool
+	 */
 	public function getDeleteFlag(){
 		return (bool)$this->delete_flag;
 	}
 	
+	/**
+	 * accessor for the various setters
+	 * 	@param array $options an assosiative array of options to be set and their values
+	 * @access public
+	 */
 	public function setOptions(array $options = array()){
 		parent::setOptions($options);
 		if (isset($options['user'])) $this->setUserId($options['user']);
+		if (isset($options['dba'])) $this->setDBAccessor($options['dba']);
+		if (isset($options['handler'])) $this->setPermissionHandler($options['handler']);
+		return $this;
+	}
+	
+	/**
+	 * sets a DBAccessor
+	 * 	@param PancakeTF_DBAccessI $dba a database accessor
+	 * @access public
+	 * @return $this
+	 */
+	public function setDBAccessor(PancakeTF_DBAccessI $dba){
+		$this->_dba = $dba;
+		return $this;
+	}
+	
+	/**
+	 * sets a permission handler
+	 * 	@param PancakeTF_PermissionHandlerI $ph
+	 * @access public
+	 * @return $this
+	 */
+	public function setPermissionHandler(PancakeTF_PermissionHandlerI $ph){
+		$this->_permission_handler = $ph;
+		return $this;
+	}
+	
+	/**
+	 * an accessor for the permission handler
+	 * 	@access string $type permssion type to check
+	 * @access public
+	 * @return true
+	 */
+	public function doesHavePermission($type){
+		return $this->_permission_handler->doesHavePermission($type,$this->getForumId(),$this->getId());
 	}
 	
 	/**

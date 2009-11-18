@@ -87,12 +87,15 @@ class PancakeTF_MessageExtra extends PancakeTF_Message{
 	
 	/**
 	 * sets the message user id
-	 * 	@param int $id a user id
+	 * 	@param int $id a user id. if not set will attempt to fetch it independantly
 	 * @access public
 	 * @return $this
 	 */
-	public function setUserId($id){
+	public function setUserId($id=false){
 		if ($this->getUserId() != self::DEFAULT_USER_ID) throw new LogicException('cannot change user');
+		if (false === $id){
+			$id = bl_User::getInstance()->getUserId();
+		}
 		if ($this->_dba->count($this->user_table,array('id'=>$id))===0){
 			throw new InvalidArgumentException('user_id');
 		}

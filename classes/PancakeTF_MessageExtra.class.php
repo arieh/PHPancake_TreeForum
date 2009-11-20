@@ -44,14 +44,14 @@ class PancakeTF_MessageExtra extends PancakeTF_Message{
 		'mark_delete'=>'Flag Post Delete'
 	);
 	
-	public function __construct($dba = null, $permission_handler=null, $id=false, $options = array()){
-		if (is_null($dba) || false === ($dba instanceof PancakeTF_DBAccessI)){
+	public function __construct($id=false, $options = array()){
+		if (false === isset($options['dba']) || false === ($options['dba'] instanceof PancakeTF_DBAccessI)){
 			$dba = new PancakeTF_ShusterDB(lib_dbutils_ShusterDb::getInstance());
-		}
+		}else $dba = $options['dba'];
 		
-		if (is_null($permission_handler) ||  false === ($permission_handler instanceof PancakeTF_PermissionHandlerI)){
+		if (false === isset($options['handler']) ||  false === ($options['handler'] instanceof PancakeTF_PermissionHandlerI)){
 			$permission_handler = new PancakeTF_MessagePermissionHandler($dba);
-		}
+		}else $permission_handler = $options['handler'];
 		
 		parent::__construct($dba,$permission_handler,$id,$options);
 	}

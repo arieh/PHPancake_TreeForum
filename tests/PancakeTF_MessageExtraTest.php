@@ -30,7 +30,7 @@ class PancakeTF_MessageExtraTest extends PancakeTF_ShusterTestCase{
 		
 		$p_h = $this->getMock('PancakeTF_PermissionHandlerI',array('doesHavePermission'));
 		$p_h->expects($this->any())->method('doesHavePermission')->will($this->returnValue($permission));
-		$this->message = new PancakeTF_MessageExtraTester($this->db,$p_h);
+		$this->message = new PancakeTF_MessageExtraTester(false,array('dba'=>$this->db,'handler'=>$p_h));
 	}
 	
 	public function getMockMessage(){
@@ -235,11 +235,13 @@ class PancakeTF_MessageExtraTest extends PancakeTF_ShusterTestCase{
 		$this->setUpDB();
 		$p_h = $this->getMock('PancakeTF_PermissionHandlerI',array('doesHavePermission'));
 		$p_h->expects($this->any())->method('doesHavePermission')->will($this->returnValue(true));
-		$this->message = new PancakeTF_MessageExtra($this->db,$p_h,false,array(
+		$this->message = new PancakeTF_MessageExtra(false,array(
 			'title'=>'new message',
 			'content'=>'set up by constructor',
 			'forum_id'=>1,
-			'user'=>1
+			'user'=>1,
+			'dba'=>$this->db,
+			'handler'=>$p_h
 		));
 		$this->message->save();
 		$sql = "
@@ -341,7 +343,7 @@ class PancakeTF_MessageExtraTest extends PancakeTF_ShusterTestCase{
 	
 	public function testCreationWithNoInjection(){
 		$this->setUpDB();
-		$message = new PancakeTF_MessageExtra(null,null,1);
+		$message = new PancakeTF_MessageExtra(1);
 		$this->assertEquals($message->getUserId(),1);
 	}
 }

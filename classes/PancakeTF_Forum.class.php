@@ -27,7 +27,6 @@ class PancakeTF_Forum implements PancakeTF_ForumI, Iterator{
 	public function __construct(PancakeTF_DBAccessI $dba, PancakeTF_PermissionHandlerI $ph, $forum_id,$options = array()){
 		$this->dba = $dba;
 		$this->p_handler = $ph;
-		
 		if ($this->dba->count($this->table,array('id'=>$forum_id))===0){
 			throw new InvalidArgumentException('Invalid Forum ID');
 		}
@@ -65,7 +64,7 @@ class PancakeTF_Forum implements PancakeTF_ForumI, Iterator{
 		$this->keys = array_keys($this->messages);
 	}
 	
-	protected function retrieveBaseMessages($iter = false){
+	protected function retrieveBaseMessages(){
 		$get_base_messages_sql = 
 			"SELECT
 				{$this->message_table}.id
@@ -76,9 +75,7 @@ class PancakeTF_Forum implements PancakeTF_ForumI, Iterator{
 		if ($this->limit>0){
 			$get_base_messages_sql .= " LIMIT {$this->start},{$this->limit}";
 		}
-		if ($iter)
-			return $this->dba->queryIterator($get_base_messages_sql,array($this->getId()));
-		return $this->dba->queryArray($get_base_messages_sql,array($this->getId()));
+		return $this->dba->queryIterator($get_base_messages_sql,array($this->getId()));
 	}
 	
 	protected function retrieveSubMessages($id){

@@ -1,6 +1,7 @@
 <?php
 require_once dirname(__FILE__) . "/dbutils/ShusterDb.php";
 require_once dirname(__FILE__) . "/dbutils/RecordsetIterator.php";
+require_once dirname(__FILE__) . "/dbutils/ResultsetWrapper.php";
 require_once dirname(__FILE__) . "/interfaces/PancakeTF_DBAccessI.class.php";
 
 class PancakeTF_ShusterDB implements PancakeTF_DBAccessI{
@@ -22,7 +23,7 @@ class PancakeTF_ShusterDB implements PancakeTF_DBAccessI{
 		$sql = $this->generateSQL($sql,$params);
 		self::$db->select($sql);
 		$arr = array();
-		while ($row= self::$db->getRow()) $arr[]=$row;
+		while ($row= self::$db->getIterator()->current()) $arr[]=$row;
 		return $arr;
 	}
 	
@@ -35,7 +36,7 @@ class PancakeTF_ShusterDB implements PancakeTF_DBAccessI{
 	 */
 	public function queryRow($sql, $params = array()){
 		$sql = $this->generateSQL($sql,$params);
-		return self::$db->select($sql)->getRow();
+		return self::$db->select($sql)->getIterator()->current();
 	}
 	
 	/**

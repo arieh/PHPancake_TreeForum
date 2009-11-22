@@ -7,44 +7,67 @@
  */
 class lib_dbutils_RecordsetIterator implements Iterator,Countable {
 	/**
-	 * @var lib_dbutils_ShusterDB
+	 * @var lib_dbutils_RecordsetWrapper
 	 */
-	private $DB;
-	private $recordIndex;
+	private $ResultSetWrapper;
+	private $recordIndex =0;
 	private $currentRow;
 	private $allRowsCount;
-	private $asObj=false;
+	private $resType='getRow';
+	private $stack = array();
+	private $allowRewind = false;
+	private $fromStack = false;
+	private $position = 0;
 	
-	public function __construct(lib_dbutils_ShusterDB $DB,$as_obj=false) {
-		$this->DB=$DB;
+	public function __construct(lib_dbutils_ResultsetWrapper $ResultSet,$as_obj=false) {
+		$this->ResultSetWrapper=$ResultSet;
 		$this->asObj=$as_obj;
-		$this->recordIndex=0;
-		$this->currentRow=($this->asObj)?($this->DB->getObj()):($this->DB->getRow());
-		if($this->currentRow) {
-			$this->recordIndex=1;
-		}
-		$this->allRowsCount=$this->DB->numRows();
+		if($as_obj) $this->resType='getObj';
+		$this->currentRow=$this->ResultSetWrapper->{$this->resType}();
+		if ($this->currentRow) $this->recordIndex = 1;
+		$this->allRowsCount=$this->ResultSetWrapper->getNumRows();
 	}
 	
+	public function enableRewind(){
+		if ($this->recordIndex>1) throw new LogicException('Cannot allow rewind. results alreadt interated');
+		$this->allowRewind = true;
+		$this->stack[]=$this->current();
+		return $this;
+	}
+		
 	public function current() {
+		if ($this->fromStack){
+			return ($this->stack[$this->recordIndex-1]);
+		}
 		return $this->currentRow;
 	}
 	
 	public function next() {
+		if ($this->fromStack){
+			$this->recordIndex++;
+			return;
+		}
+		
 		$this->recordIndex++;
-		$this->currentRow=($this->asObj)?($this->DB->getObj()):($this->DB->getRow());
+		$this->currentRow=$this->ResultSetWrapper->{$this->resType}();
+		if ($this->allowRewind && $this->fromStack === false){
+			$this->stack[]=$this->currentRow;
+			if (false === $this->valid()) $this->fromStack = true;
+		}
 	}
 	
 	public function key() {
 		return $this->recordIndex;
 	}
 	
-	public function rewind ()//NOT IMPLEMENTED, AS THIS IS A FORWARD ONLY CURSOR
-	{
+	public function rewind (){
+		if (false === $this->allowRewind) return;
+		$this->recordIndex = 1;
 	}
 	
 	public function valid()	{
-		return $this->currentRow;
+		if ($this->fromStack) return ($this->recordIndex<=count($this->stack));
+		return (bool)$this->currentRow;
 	}
 	
 	public function count()	{

@@ -1,6 +1,6 @@
 <?php
 //***************************************************************************************************
-// ShusterDb v5.0
+// ShusterDb v6.0
 //
 // Purpose: this object handles actions agains mySql db
 //
@@ -48,6 +48,9 @@
 //30-5-2009
 // Adding error shutdown on request only
 //***************************************************************************************************
+//21-11-2009
+// Xirox suggestions: removing record set manipulating methods to theire own class
+//***************************************************************************************************
 class lib_dbutils_ShusterDb
 {
 	/**
@@ -67,16 +70,9 @@ class lib_dbutils_ShusterDb
 	/**
 	 * Last result set fetched
 	 *
-	 * @var mysqli_result
+	 * @var lib_dbutils_ResultsetWrapper
 	 */
 	private $ResultSet=null;
-	
-	/**
-	 * The last record fetched
-	 *
-	 * @var mixed, either a StdObj or array.
-	 */
-	private $record;
 	
 	/**
 	 * Number of rows fetched/ affected by the last SQL performed
@@ -86,7 +82,6 @@ class lib_dbutils_ShusterDb
 	private	$numRows;
 	
 	private $lastInsertId;
-	private	$num_fields;//number of fields in the query
 	private	$errorMessag;
 	
 	/**
@@ -116,7 +111,7 @@ class lib_dbutils_ShusterDb
 		if(array_key_exists($instance,self::$Instances) && is_object(self::$Instances[$instance])) {
 			return self::$Instances[$instance];
 		}
-		$out_message='The database is unavailable for maintenance. We appreciate your patience.';
+		//$out_message='The database is unavailable for maintenance. We appreciate your patience.';
 
 		$Registry = Zend_Registry::getInstance();
 		$MySqli=mysqli_init();
@@ -168,6 +163,7 @@ class lib_dbutils_ShusterDb
 	 */
 	public function setErrorCodeFlag($flag=true){
 				$this->getErrorCode=$flag;
+				return $this;
 	}
 	
 	//*****************************************************************************
@@ -207,10 +203,11 @@ class lib_dbutils_ShusterDb
 	public function select($sql,$buffer_type=MYSQLI_STORE_RESULT) {
 		$this->errorCode=0;
 		$this->lastSql=$sql;
-		if(!($this->ResultSet=$this->MySqli->query($sql,$buffer_type))){
+		if(!($ResultSet=$this->MySqli->query($sql,$buffer_type))){
 			$this->error();
 		}
-		$this->numRows=$this->ResultSet->num_rows;
+		$this->ResultSet=new lib_dbutils_ResultsetWrapper($ResultSet);
+		$this->numRows=$this->ResultSet->getNumRows();
 		return $this; //FOR CHAINING (and Ponies!)
 	}//EOF select
 
@@ -222,85 +219,10 @@ class lib_dbutils_ShusterDb
 	 * @return lib_dbutils_ShusterDb
 	 */
 	public function unBufferedSelect($sql) {
+		//TODO verify this works correctly with the Iterator and Wrapper.
 		$this->errorCode=0;
 		return $this->select($sql,MYSQLI_USE_RESULT); //FOR CHAINING (and Ponies!)
 	}//EOF unBufferedSelect
-	
-	//*****************************************************************************
-	/**
-	 * used to read next record from the recordset - user is responsible to check
-	 * if next arrived to end of recordset
-	 *
-	 * @param int $type of result to return. defaults to MYSQLI_ASSOC. Can be: MYSQLI_ASSOC, MYSQLI_NUM, MYSQLI_BOTH
-	 * @return array
-	 */
-	public function getRow($type=MYSQLI_ASSOC) {
-		$this->record=$this->ResultSet->fetch_array($type);
-		return($this->record);		
-	}//EOF getRow
-	
-	//*****************************************************************************
-	/**
-	 * returns a row as object
-	 * 
-	 * @return stdClass
-	 */
-	public function getObj(){
-		$this->record=$this->ResultSet->fetch_object();
-		return($this->record);		
-	}//EOF getObj
-	
-	//*****************************************************************************
-	// fetchField
-	//
-	// Fetches a field from the last result set. (index is numeric or asociative)
-	//*****************************************************************************
-	public function fetchField($index=-1) {
-		if(isset($this->recoraffected_rowsd[$index])){
-			return $this->record[$index];
-		}
-		elseif($index==-1)	{
-			return $this->record;
-		}
-		else{
-			return(null);
-		}
-	}//EOF fetchField
-
-	
-	//*****************************************************************************
-	// fetchParams
-	//
-	// Fetches a param from field params "param1=value1;param2=value2;"
-	//*****************************************************************************
-	public function fetchParams($param_key) {
-		$field=$this->record['params'];
-		$cells=explode(';',$field);
-		foreach($cells as $bob)
-		{
-			$param=explode('=',$bob);
-			if($param[0]==$param_key)
-			{
-				return $param[1];
-			}
-		}
-		//FIN
-		return null;
-
-	}//----------------------------------END OF FUNCTION fetchParams
-
-	//*****************************************************************************
-	/**
-	 * Return result as two dim array
-	 * @return array
-	 */
-	public function getDataSet() {
-		// return $this->ResultSet->fetch_all(); TODO Only from PHP 5.3 REQUIRES MYSQLND
- 		$data=array();
-		while($this->getRow())
-			$data[]=$this->record;
-		return $data;
-	}//----------------------------------END OF FUNCTION getDataSet
 	
 	/**
 	 * @return integer Number of rows affected/fetched in the last SQL
@@ -309,17 +231,6 @@ class lib_dbutils_ShusterDb
 		return $this->numRows;
 	}//----------------------------------END OF FUNCTION numRows
 
-	
-	//*****************************************************************************
-	// numFields
-	//
-	// Fetches number of fields in the last select
-	//*****************************************************************************
-	public function numFields() {
-		return $this->ResultSet->field_count;
-	}//----------------------------------END OF FUNCTION numFields
-
-	
 	//*****************************************************************************
 	// scalarQuery
 	/**
@@ -358,11 +269,14 @@ class lib_dbutils_ShusterDb
 	}
 	
 	//*****************************************************************************
-	// getIterator
-	//
-	// Returns an Iterator Object that can be used to travers the record set. Currently, 
-	// only forward iteration is possible.
-	//*****************************************************************************
+	/**
+	 * Return result as two dim array
+	 * @return array
+	 */
+	public function getDataSet() {
+		return $this->ResultSet->getDataSet();
+	}//----------------------------------END OF FUNCTION getDataSet
+	
 	/**
 	 * getIterator
 	 *
@@ -372,7 +286,11 @@ class lib_dbutils_ShusterDb
 	 * @return lib_dbutils_RecordsetIterator
 	 */
 	public function getIterator($as_obj=false) {
-		return new lib_dbutils_RecordsetIterator($this,$as_obj);
+		return new lib_dbutils_RecordsetIterator($this->ResultSet,$as_obj);
+	}
+
+	public function getResultSet(){
+		return $this->ResultSet;
 	}
 //------------------------------PRIVATE METHODS-----------------------------------------------------
 

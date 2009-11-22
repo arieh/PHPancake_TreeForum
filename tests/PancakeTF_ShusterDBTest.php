@@ -20,7 +20,6 @@ class PancakeTF_ShusterDBTest extends PancakeTF_ShusterTestCase{
 		foreach ($result as $res){
 			$arr2[]=$res;
 		} 
-
 		$this->assertEquals($arr1,$arr2);
 	}
 

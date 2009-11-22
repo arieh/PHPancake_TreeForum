@@ -43,10 +43,8 @@ class lib_dbutils_RecordsetIterator implements Iterator,Countable {
 	}
 	
 	public function next() {
-		if ($this->fromStack){
-			$this->recordIndex++;
-			return;
-		}
+		$this->recordIndex++;
+		if ($this->fromStack) return;
 		
 		$this->recordIndex++;
 		$this->currentRow=$this->ResultSetWrapper->{$this->resType}();
@@ -62,11 +60,16 @@ class lib_dbutils_RecordsetIterator implements Iterator,Countable {
 	
 	public function rewind (){
 		if (false === $this->allowRewind) return;
+		if ($this->valid() && $this->recordIndex>1){
+			while ($this->valid()){
+				$this->next();
+			}
+		}
 		$this->recordIndex = 1;
 	}
 	
 	public function valid()	{
-		if ($this->fromStack) return ($this->recordIndex<=count($this->stack));
+		if ($this->fromStack) return ($this->recordIndex<count($this->stack));
 		return (bool)$this->currentRow;
 	}
 	

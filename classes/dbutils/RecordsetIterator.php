@@ -29,7 +29,7 @@ class lib_dbutils_RecordsetIterator implements Iterator,Countable {
 	}
 	
 	public function enableRewind(){
-		if ($this->recordIndex>1) throw new LogicException('Cannot allow rewind. results alreadt interated');
+		if ($this->recordIndex>1) throw new LogicException('Cannot allow rewind. results already interated');
 		$this->allowRewind = true;
 		$this->stack[]=$this->current();
 		return $this;
@@ -47,7 +47,7 @@ class lib_dbutils_RecordsetIterator implements Iterator,Countable {
 		if ($this->fromStack) return;
 		
 		$this->currentRow=$this->ResultSetWrapper->{$this->resType}();
-		if ($this->allowRewind && $this->fromStack === false){
+		if ($this->allowRewind && false === $this->fromStack ){
 			$this->stack[]=$this->currentRow;
 			if (false === $this->valid()) $this->fromStack = true;
 		}

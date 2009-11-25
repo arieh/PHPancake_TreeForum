@@ -3,6 +3,33 @@ require_once dirname(__FILE__) . "/../classes/PancakeTF_TestCase.class.php";
 require_once dirname(__FILE__) . "/../classes/PancakeTF_PDOAccess.class.php";
 
 class PancakeTF_PDOAccessTest extends PancakeTF_TestCase{
+	public function testGetIteratorForeach(){
+		$this->setUpDB();
+		$sql = "SELECT * FROM `pancaketf_messages`";
+		$result = $this->db->queryIterator($sql);
+		$arr = array();
+		foreach ($result as $key=> $res) $arr[$key]=$res;
+		$this->assertEquals(8,count($arr));
+	}
+	
+	public function testGetIteratorCount(){
+		$this->setUpDB();
+		$sql = "SELECT * FROM `pancaketf_messages`";
+		$result = $this->db->queryIterator($sql);
+		$this->assertEquals($result->count(),8);
+	}
+	
+	public function testMultipleIteration(){
+		$this->setUpDB();
+		$sql = "SELECT * FROM `pancaketf_messages`";
+		$result = $this->db->queryIterator($sql);
+		$arr1 = array();
+		$arr2 = array();
+		foreach ($result as $key=> $res) $arr1[$key]=$res;
+		foreach ($result as $key=> $res) $arr2[$key]=$res;
+		$this->assertEquals($arr1,$arr2);
+	}
+	
 	public function testConnection(){
 		$this->setUpDB();
     	
@@ -71,25 +98,11 @@ class PancakeTF_PDOAccessTest extends PancakeTF_TestCase{
 		$this->assertTrue($result instanceof Countable);
 	}
 	
-	public function testGetIteratoForeach(){
-		$this->setUpDB();
-		$sql = "SELECT * FROM `pancaketf_messages`";
-		$result = $this->db->queryIterator($sql);
-		$count = 0;
-		foreach ($result as $res) $count++;
-		$this->assertEquals(8,$count);
-	}
 	
-	public function testGetIteratoCount(){
-		$this->setUpDB();
-		$sql = "SELECT * FROM `pancaketf_messages`";
-		$result = $this->db->queryIterator($sql);
-		$this->assertTrue($result->count()==8);
-	}
 	
 	public function testGenerateInList(){
 		$this->setUpDB();
 		$wanted = "1,'a',2,'a4'";
 		$this->assertEquals($wanted,$this->db->generateInList(array(1,'a',2,'a4')));
 	}
-} 
+}

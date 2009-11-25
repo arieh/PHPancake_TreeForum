@@ -14,11 +14,11 @@ class PancakeTF_ShusterDBTest extends PancakeTF_ShusterTestCase{
 		$result = $this->db->queryIterator($sql)->enableRewind();
 		$arr1 = array();
 		$arr2 = array();
-		foreach ($result as $res){
-			$arr1[]=$res;
+		foreach ($result as $key=> $res){
+			$arr1[$key]=$res;
 		} 
-		foreach ($result as $res){
-			$arr2[]=$res;
+		foreach ($result as $key=> $res){
+			$arr2[$key]=$res;
 		} 
 		$this->assertEquals($arr1,$arr2);
 	}

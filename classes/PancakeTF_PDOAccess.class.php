@@ -43,7 +43,6 @@ class PancakeTF_PDOAccess implements PancakeTF_DBAccessI {
 	public function queryArray($sql, $params = array()){
 		if (isset($this->statements[$sql])){
 			$st = $this->statements[$sql];
-			$st->execute($params);
 		}else{
 			$this->statements[$sql] = $st = self::$pdo->prepare($sql);	
 		}
@@ -78,7 +77,6 @@ class PancakeTF_PDOAccess implements PancakeTF_DBAccessI {
 	public function update( $sql, $params=array()){
 		if (isset($this->statements[$sql])){
 			$st = $this->statements[$sql];
-			$st->execute($params);
 		}else{
 			$this->statements[$sql] = $st = self::$pdo->prepare($sql);	
 		}

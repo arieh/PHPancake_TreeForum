@@ -36,7 +36,7 @@ class PancakeTF_ShusterDB implements PancakeTF_DBAccessI{
 	 */
 	public function queryRow($sql, $params = array()){
 		$sql = $this->generateSQL($sql,$params);
-		return self::$db->select($sql)->getIterator()->current();
+		return self::$db->select($sql)->getResultSet()->getRow();
 	}
 	
 	/**

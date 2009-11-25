@@ -46,7 +46,6 @@ class lib_dbutils_RecordsetIterator implements Iterator,Countable {
 		$this->recordIndex++;
 		if ($this->fromStack) return;
 		
-		$this->recordIndex++;
 		$this->currentRow=$this->ResultSetWrapper->{$this->resType}();
 		if ($this->allowRewind && $this->fromStack === false){
 			$this->stack[]=$this->currentRow;

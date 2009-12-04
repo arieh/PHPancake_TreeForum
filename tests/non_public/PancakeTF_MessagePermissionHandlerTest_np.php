@@ -1,6 +1,6 @@
 <?php
-require_once dirname(__FILE__) . "/../classes/PancakeTF_ShusterTestCase.class.php";
-require_once dirname(__FILE__) . "/../classes/PancakeTF_MessagePermissionHandler.class.php";
+require_once dirname(__FILE__) . "/../../classes/PancakeTF_ShusterTestCase.class.php";
+require_once dirname(__FILE__) . "/../../classes/PancakeTF_MessagePermissionHandler.class.php";
 
 class PancakeTF_MessagePermissionHandlerTester extends PancakeTF_MessagePermissionHandler{
 	public function __call($name,$params){
@@ -20,7 +20,7 @@ class PancakeTF_MessagePermissionHandlerTester extends PancakeTF_MessagePermissi
 	}
 }
 
-class PancakeTF_MessagePermissionHandlerTest extends PancakeTF_ShusterTestCase{
+class PancakeTF_MessagePermissionHandlerTest_np extends PancakeTF_ShusterTestCase{
 	public function setUp(){
 		$this->setUpDB();
 		$this->tested = new PancakeTF_MessagePermissionHandlerTester($this->db);

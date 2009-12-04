@@ -26,40 +26,6 @@ class PancakeTF_ForumExtraTest extends PancakeTF_ShusterTestCase{
 		$options = array('dba'=>$this->db);
 		$this->forum = new PancakeTF_ForumExtraTester(1,$options);
 	}
-	
-	public function testRetrieveSubMessages(){
-		$messages = $this->forum->public_retrieveSubMessages(1);
-		$this->assertEquals(count($messages),5);
-		foreach ($messages as $message){
-			$this->assertTrue(isset($message['user_name'][0]));
-			$this->assertTrue(isset($message['votes']));
-			$this->assertTrue(isset($message['user_email']));
-		}
-	}
-	
-	public function testRetrieveBaseMessages(){
-		$arr = array(array('id'=>1),array('id'=>5),array('id'=>9));
-		$temp = array();
-		foreach ($this->forum->public_retrieveBaseMessages() as $message) $temp[]= $message;
-		$this->assertEquals($arr,$temp);
-	}
-	
-	
-	public function testOrderMessages(){
-		$arr = array(
-			'1.4'=>array('id'=>4,'dna'=>'1.4','wanted_depth'=>2),
-			'1'=>array('id'=>1,'dna'=>'1','wanted_depth'=>1),
-			'1.2.3'=>array('id'=>3,'dna'=>'1.2.3','wanted_depth'=>3),
-			'1.2'=>array('id'=>2,'dna'=>'1.2','wanted_depth'=>2)			
-		);
-		$wanted = array(1,2,3,4);
-		$new_arr = $this->forum->public_orderMessages($arr);
-		$count = 0;
-		foreach ($new_arr as $msg){
-			$this->assertEquals($msg['id'],$wanted[$count++]);
-			$this->assertEquals($msg['wanted_depth'],$msg['depth']);
-		} 
-	}
 		
 	public function testGetMessages(){
 		$this->assertEquals(count($this->forum->getMessages()),8);

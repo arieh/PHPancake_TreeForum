@@ -112,7 +112,6 @@ class lib_dbutils_ShusterDb
 			return self::$Instances[$instance];
 		}
 		//$out_message='The database is unavailable for maintenance. We appreciate your patience.';
-
 		$Registry = Zend_Registry::getInstance();
 		$MySqli=mysqli_init();
 		switch($instance) {

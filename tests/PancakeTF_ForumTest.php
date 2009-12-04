@@ -27,39 +27,6 @@ class PancakeTF_ForumTest extends PancakeTF_ShusterTestCase{
 		$p_h->expects($this->any())->method('doesHavePermission')->will($this->returnValue(true));
 		$this->forum = new ForumTester($this->db,$p_h,1);
 	}
-	
-	public function testRetrieveBaseMessages(){
-		$arr = array(array('id'=>1),array('id'=>5),array('id'=>9));
-		$temp = array();
-		foreach ($this->forum->public_retrieveBaseMessages() as $message) $temp[]= $message;
-		$this->assertEquals($arr,$temp);
-	}
-	
-	public function testRetrieveSubMessages(){
-		$wanted_ids = array(1,2,3,4,7);
-		$count = 0;
-		foreach($this->forum->public_retrieveSubMessages(1) as $msg) $this->assertEquals($msg['id'],$wanted_ids[$count++]); 
-		
-		$wanted_ids = array(5,8);
-		$count = 0;
-		foreach($this->forum->public_retrieveSubMessages(5) as $msg) $this->assertEquals($msg['id'],$wanted_ids[$count++]); 
-	}
-	
-	public function testOrderMessages(){
-		$arr = array(
-			'1.4'=>array('id'=>4,'dna'=>'1.4','wanted_depth'=>2),
-			'1'=>array('id'=>1,'dna'=>'1','wanted_depth'=>1),
-			'1.2.3'=>array('id'=>3,'dna'=>'1.2.3','wanted_depth'=>3),
-			'1.2'=>array('id'=>2,'dna'=>'1.2','wanted_depth'=>2)			
-		);
-		$wanted = array(1,2,3,4);
-		$new_arr = $this->forum->public_orderMessages($arr);
-		$count = 0;
-		foreach ($new_arr as $msg){
-			$this->assertEquals($msg['id'],$wanted[$count++]);
-			$this->assertEquals($msg['wanted_depth'],$msg['depth']);
-		} 
-	}
 		
 	public function testGetMessages(){
 		$this->assertEquals(count($this->forum->getMessages()),8);
